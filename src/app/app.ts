@@ -24,11 +24,12 @@ export class App {
     private readonly fog = new Fog(new Color(0xffffff), 0, 100);
 
     private readonly textarea = new Textarea(
-        new Vector3(0., 2, 0),
+        350,
+        new Vector3(0., 1., 0),
         Math.PI * 1.5,
-        Math.PI * 2,
-        2,
-        7,
+        Math.PI * 0.5,
+        1,
+        1,
         45
     );
 
@@ -67,7 +68,6 @@ export class App {
         this.renderer.setAnimationLoop(this.render.bind(this, false));
 
         this.controllers = new VRControllers(this.renderer, this.scene);
-        
     }
 
     private adjustCanvasSize() {

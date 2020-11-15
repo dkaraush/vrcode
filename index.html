@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>vr1</title>
+    <link rel="stylesheet" type="text/css" href="node_modules/posterjs/build/poster.css">
+    <script type="text/javascript" src="node_modules/posterjs/build/poster.js"></script>
   <style>
     * {
       margin: 0;
@@ -24,6 +26,15 @@
       bottom: 0;
       width: 100% !important;
       height: 100% !important;
+    }
+
+    .poster {
+        position: absolute !important;
+        bottom: 8px;
+        right: 8px;
+        max-width: 0;
+        max-height: 0;
+        opacity: 0;
     }
   </style>
 </head>

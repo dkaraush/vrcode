@@ -30,12 +30,12 @@ export class VRControllers {
         const controller = this.renderer.xr.getController( n );
         controller.addEventListener( 'selectstart', this.onSelectStart.bind(this, controller) );
         controller.addEventListener( 'selectend', this.onSelectEnd.bind(this, controller) );
-        // controller.addEventListener( 'connected', ({ data }) =>
-        //     controller.add( this.buildController( data ) )
-        // );
-        // controller.addEventListener( 'disconnected', () =>
-        //     controller.remove( controller.children[ 0 ] )
-        // );
+        controller.addEventListener( 'connected', ({ data }) =>
+            controller.add( this.buildController( data ) )
+        );
+        controller.addEventListener( 'disconnected', () =>
+            controller.remove( controller.children[ 0 ] )
+        );
         this.scene.add( controller );
         return controller;
     }
@@ -46,10 +46,25 @@ export class VRControllers {
         return grip;
     }
 
-    private onSelectStart(controller: Group) {
+    private buildController(data: any) : Mesh | Line {
+        const geometry = new BufferGeometry();
+        geometry.setAttribute( 'position', new Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
+        geometry.setAttribute( 'color', new Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
 
+        const material = new LineBasicMaterial({
+            vertexColors: true,
+            blending: AdditiveBlending
+        });
+
+        return new Line( geometry, material );
+    }
+
+    private onSelectStart(controller: Group) {
+        if (controller.children[0])
+            ((controller.children[0] as Mesh | Line).material as LineBasicMaterial).color = new Color( 0x42a5f5 );
     }
     private onSelectEnd(controller: Group) {
-
+        if (controller.children[0])
+            ((controller.children[0] as Mesh | Line).material as LineBasicMaterial).color = new Color(1., 1., 1.);
     }
 }

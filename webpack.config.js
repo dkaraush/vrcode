@@ -29,7 +29,6 @@ module.exports = {
   devServer: {
     https: true,
     disableHostCheck: true,
-    pfx: './cert.pfx',
     host: '0.0.0.0',
     port: 443
   }
