@@ -1,6 +1,13 @@
 import { CanvasTexture, ClampToEdgeWrapping, Color, DoubleSide, LinearFilter, LinearMipmapNearestFilter, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshPhongMaterial, MeshStandardMaterial, PlaneGeometry, Vector3 } from "three";
 
+export const isVRDisplay = (a: any) : a is VRDisplay =>
+    typeof a === 'object' && a.isVRDisplay;
+
 export default class VRDisplay extends Mesh {
+    public isVRDisplay: boolean;
+
+    public locked: boolean;
+
     public origin: Vector3;
     public offsetAngle: number;
     public distance: number;
@@ -38,7 +45,7 @@ export default class VRDisplay extends Mesh {
             canvas = document.createElement('canvas');
             document.body.appendChild(canvas);
         }
-        
+
         const texture = Object.assign(
             new CanvasTexture(canvas),
             {
@@ -62,6 +69,8 @@ export default class VRDisplay extends Mesh {
         super(geometry, material);
 
         this.dpu = dpu;
+        this.locked = false;
+        this.isVRDisplay = true
 
         this.origin = origin;
         this.height = height;
@@ -102,8 +111,9 @@ export default class VRDisplay extends Mesh {
             vertex2.x = x2;
             vertex2.z = z2;
         }
-        for (const vertex of this.geometry.vertices)
-            vertex.y = this.origin.y + Math.sign(vertex.y) * (this.height / 2);
+        // for (const vertex of this.geometry.vertices)
+        //     vertex.y = this.origin.y + Math.sign(vertex.y) * (this.height / 2);
+        this.position.set(0, this.origin.y, 0);
 
         this.geometry.verticesNeedUpdate = true;
 

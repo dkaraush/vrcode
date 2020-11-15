@@ -8,6 +8,7 @@ import InfiniteGridHelper from '../../lib/THREE.InfiniteGridHelper/InfiniteGridH
 // @ts-ignore
 import * as _Sky from 'three-sky';
 import Textarea from './textarea';
+import { VRKeyboard } from './keyboard';
 const Sky = _Sky as typeof Mesh;
 
 export class App {
@@ -22,6 +23,8 @@ export class App {
     private readonly grid = new InfiniteGridHelper(0.5, 10);
     private readonly light = new DirectionalLight(0xffffff, 1);
     private readonly fog = new Fog(new Color(0xffffff), 0, 100);
+
+    private readonly keyboard = new VRKeyboard();
 
     private readonly textarea = new Textarea(
         350,
@@ -59,6 +62,7 @@ export class App {
         this.scene.add( new AmbientLight( 0x666666 ) );
 
         this.scene.add( this.textarea );
+        this.scene.add( this.keyboard );
 
         // this.render(true);
 
@@ -78,14 +82,13 @@ export class App {
     }
 
     private render(requestNextFrame: boolean = true) {
+        this.controllers.update();
+
         this.textarea.update();
         this.renderer.render(this.scene, this.camera);
 
         if (requestNextFrame)
             requestAnimationFrame(() => this.render());
-
-        // this.controllers.update();
-
 
         this.box.rotateY(0.03);
     }

@@ -122,9 +122,11 @@ export default class Textarea extends VRDisplay {
 
     resize(width: number, height: number) {
         if (this.poster) {
-            this.poster.width = width;
-            this.poster.height = height;
-            this.poster.value = 'value\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n23';
+            if (this.poster.width !== width)
+                this.poster.width = width;
+            if (this.poster.height !== height)
+                this.poster.height = height;
+            this.poster.value += ' ';
         }
         // if (this.primrose) {
         //     this.primrose.setSize(width / this.scaleFactor, height / this.scaleFactor);
