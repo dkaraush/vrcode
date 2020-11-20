@@ -2,34 +2,24 @@ import { AdditiveBlending, ArrowHelper, BufferGeometry, Color, Euler, Float32Buf
 import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory';
 import VRDisplay, { isVRDisplay } from './display';
 import { getVRKeyboard, isVRKeyboard, VRKeyboard } from './keyboard';
+import * as THREE from 'three';
+window.THREE = THREE;
 
-export type DraggingStateKeyboard = {
-    distance: number;
-    startPos: Vector3;
-    startRot: Euler;
-    startOffsetPos: Vector3;
-    object: VRKeyboard;
+export interface DraggingState {
+    rayStartSrcPos: Vector3;
+    rayStartDestPos: Vector3;
+    rayLength: number;
+    rayStartRot: Quaternion;
+    obj: Object3D;
+    objStartScale: Vector3;
     objStartPos: Vector3;
-    objStartRot: Euler;
-    startOffsetRotY: number;
-};
-export type DraggingStateDisplay = {
-    distance: number;
-    startPos: Vector3;
-    startRot: Euler;
-    startOffsetPos: Vector3;
-    object: VRDisplay;
-    displayStartOriginY: number;
-    displayStartOffsetAngle: number;
-    displayStartWidthAngle: number;
-    displayStartDistance: number;
-    displayStartHeight: number;
+    objStartRot: Quaternion;
 }
-export type DraggingState = DraggingStateKeyboard | DraggingStateDisplay | null;
 
 export class VRControllers {
     private renderer: WebGLRenderer;
     private scene: THREE.Scene;
+    private canMoveItem: (obj: Object3D) => boolean;
 
     public activeController?: Group;
     public leftController: Group;
@@ -37,13 +27,14 @@ export class VRControllers {
     public rightController: Group;
     public rightGrip: Group;
 
-    public state: [DraggingState, DraggingState] = [null, null];
+    public state: [DraggingState | null, DraggingState | null] = [null, null];
 
     private controllerModelFactory: XRControllerModelFactory;
 
-    constructor(renderer: WebGLRenderer, scene: THREE.Scene) {
+    constructor(renderer: WebGLRenderer, scene: THREE.Scene, canMoveItem: (obj: Object3D) => boolean) {
         this.renderer = renderer;
         this.scene = scene;
+        this.canMoveItem = canMoveItem;
 
         this.controllerModelFactory = new XRControllerModelFactory();
 
@@ -87,11 +78,15 @@ export class VRControllers {
         return new Line( geometry, material );
     }
 
+
+
+
     private onSelectStart(n: number, controller: Group) {
         if (controller.children[0])
             ((controller.children[0] as Mesh | Line).material as LineBasicMaterial).color = new Color( 0x42a5f5 );
 
         this.state[n] = this.getState(controller);
+        this.updateAnotherController(n === 0 ? 1 : 0);
     }
     private onSelectEnd(n: number, controller: Group) {
         if (controller.children[0])
@@ -99,6 +94,8 @@ export class VRControllers {
 
         this.state[n] = null;
     }
+
+
 
     private getSceneChildren() : Object3D[] {
         const children = [...this.scene.children];
@@ -112,19 +109,19 @@ export class VRControllers {
         return new Vector3( 0, 0, -1 ).applyQuaternion( quaternion );
     }
 
-    private ray(controller: Group) : [number, Vector3, VRDisplay | VRKeyboard] | null {
+    private ray(controller: Group) : [number, Vector3, Object3D | Group] | null {
         const position = controller.position;
         const direction = this.getDirection(controller.quaternion);
 
-        this.scene.add(new ArrowHelper(direction, position, 1000, 0xff0000));
+        // this.scene.add(new ArrowHelper(direction, position, 1000, 0xff0000));
 
         this.raycaster.set(position, direction);
-        const intersects = this.raycaster.intersectObjects( this.getSceneChildren() );
+        const intersects = this.raycaster.intersectObjects(
+            this.getSceneChildren()
+                .filter(obj3d => this.canMoveItem(obj3d))
+        );
 
-        const intersection = intersects.filter(o =>
-            (isVRDisplay(o.object) && !o.object.locked) ||
-            getVRKeyboard(o.object)
-        )[0];
+        const intersection = intersects[0];
         if (!intersection)
             return null;
 
@@ -132,84 +129,109 @@ export class VRControllers {
 
         if (obj && getVRKeyboard(obj))
             obj = getVRKeyboard(obj) as VRKeyboard;
-        return [intersection.distance, intersection.point, obj as VRDisplay | VRKeyboard];
+        return [intersection.distance, intersection.point, obj];
     }
 
-    private getState(controller: Group) : DraggingState {
+    private getState(controller: Group) : DraggingState | null {
         const intersection = this.ray(controller);
         if (!intersection)
             return null;
-        const [distance, pos, object] = intersection;
+        const [rayLength, rayStartDestPos, obj] = intersection;
 
-        const startPos = controller.position.clone();
-        const startRot = controller.rotation.clone();
-        const startOffsetPos = pos.clone();
+        return {
+            obj,
+            objStartPos: obj.position.clone(),
+            objStartRot: obj.quaternion.clone(),
+            objStartScale: obj.scale.clone(),
+            rayLength,
+            rayStartSrcPos: controller.position.clone(),
+            rayStartDestPos,
+            rayStartRot: controller.quaternion.clone()
+        };
+    }
+    private updateAnotherController(n: number) {
+        const thisState = this.state[n];
+        const updatedState = this.state[n === 0 ? 1 : 0];
+        if (thisState && updatedState && 
+            thisState.obj === updatedState.obj) {
 
-        const state = {distance, startPos, startOffsetPos, startRot};
-
-        if (isVRKeyboard(object)) {
-            return {
-                ...state,
-                object,
-                objStartPos: object.position.clone(),
-                objStartRot: object.rotation.clone(),
-                startOffsetRotY: Math.atan2(
-                    controller.position.x - pos.x,
-                    controller.position.z - pos.z
-                )
-            };
-        } else if (isVRDisplay(object)) {
-            return {
-                ...state,
-                object,
-                displayStartOriginY: object.origin.y,
-                displayStartDistance: object.distance,
-                displayStartHeight: object.height,
-                displayStartOffsetAngle: object.offsetAngle,
-                displayStartWidthAngle: object.widthAngle
-            };
-        } else
-            return null;
+            const thisController = n === 0 ? this.rightController : this.leftController;
+            thisState.rayStartSrcPos = thisController.position.clone();
+            thisState.rayStartDestPos = thisState.rayStartSrcPos.clone().addScaledVector(this.getDirection(thisController.quaternion), thisState.rayLength);
+            thisState.rayStartRot = thisController.quaternion.clone();
+        }
     }
 
     // public arrowHelper : ArrowHelper | null = null;
     public raycaster = new Raycaster();
     update() {
-        this.handleDragging(0);
-        this.handleDragging(1);
+        if (this.state[0] && this.state[1] && this.state[0].obj === this.state[1].obj) {
+            this.handleMultiDragging();
+        } else {
+            this.handleSingleDragging(0);
+            this.handleSingleDragging(1);
+        }
     }
 
 
-    private handleDragging(n: number) {
+    private handleSingleDragging(n: number) {
         const state = this.state[n];
         if (!state)
             return;
 
-        const controller = n === 0 ? this.rightController : this.leftController;
-        const pos = controller.position.clone().add( this.getDirection(controller.quaternion).multiplyScalar(state.distance) );
-
-        if (isVRKeyboard(state.object)) {
-            const stateKeyboard = state as DraggingStateKeyboard;
-            stateKeyboard.object.position.copy(
-                stateKeyboard.objStartPos.clone().add(
-                    pos.sub(stateKeyboard.startOffsetPos)
+        const controller = (n === 0 ? this.rightController : this.leftController)
+        const raySrcPos = controller.position.clone();
+        const rayRot = controller.quaternion.clone();
+        const rayDirection = this.getDirection(rayRot);
+        const rayDestPos = raySrcPos.clone().addScaledVector(rayDirection, state.rayLength);
+        state.obj.position.copy(
+            state.objStartPos.clone().add(
+                rayDestPos.clone().sub(
+                    state.rayStartDestPos
                 )
-            );
-            // stateKeyboard.object.quaternion = Quaternion.fr(stateKeyboard.startRot).slerp()
-            // stateKeyboard.object.rotation.y = Math.atan2(
-            //     controller.position.x - pos.x,
-            //     controller.position.z - pos.z
-            // );
-        } else if (isVRDisplay(state.object)) {
-            const stateDisplay = state as DraggingStateDisplay;
-            const currentAngle = Math.atan2(pos.z, pos.x) + Math.PI * 2;
-            const startDistance = stateDisplay.startOffsetPos.multiply(new Vector3(1, 0, 1)).length();
-            const currentDistance = controller.position.multiply(new Vector3(1, 0, 1)).length();
+            )
+        );
+        state.obj.quaternion.copy(
+            state.objStartRot.clone().multiply(
+                // rayRot.multiply(state.rayStartRot.clone().inverse())
+                state.rayStartRot.clone().inverse().multiply(rayRot.clone())
+            )
+        );
+    }
 
-            stateDisplay.object.offsetAngle = currentAngle;
-            stateDisplay.object.origin.y = stateDisplay.displayStartOriginY + pos.sub(stateDisplay.startOffsetPos).y;
-            stateDisplay.object.distance = Math.max(1, stateDisplay.displayStartDistance + (currentDistance - startDistance) * 4);
-            stateDisplay.object.bend();
-        }
+    private handleMultiDragging() {
+        // const state1 = this.state[0];
+        // const state2 = this.state[1];
+        // const controller1 = this.rightController;
+        // const controller2 = this.leftController;
+
+        // if (state1 === null || state2 === null)
+        //     return;
+
+        // const { obj, objStartPos, objStartRot, objStartScale } = state1;
+
+        // const ray1SrcPos = controller1.position.clone();
+        // const ray1Rot = controller1.quaternion.clone();
+        // const ray1DestPos = ray1SrcPos.clone().addScaledVector(this.getDirection(ray1Rot), state1.rayLength);
+
+        // const ray2SrcPos = controller2.position.clone();
+        // const ray2Rot = controller2.quaternion.clone();
+        // const ray2DestPos = ray2SrcPos.clone().addScaledVector(this.getDirection(ray2Rot), state2.rayLength);
+
+        // const raysStartDist = state1.rayStartDestPos.distanceTo(state2.rayStartDestPos);
+        // const raysDist = ray1DestPos.distanceTo(ray2DestPos);
+
+        // const raysMiddleStartDest = state1.rayStartDestPos.lerp(state2.rayStartDestPos, 0.5);
+        // const raysMiddleDest = ray1DestPos.lerp(ray2DestPos, 0.5);
+
+        // if (isVRDisplay(obj)) {
+
+        // } else {
+        //     obj.scale.copy(
+        //         objStartScale.clone().add(
+        //             new Vector3().setScalar((raysDist - raysStartDist) * 0.1)
+        //         )
+        //     )
+        // }
     }
 }

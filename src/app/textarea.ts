@@ -58,22 +58,22 @@ export default class Textarea extends VRDisplay {
     public poster;
 
     constructor(
+        width: number = 2,
+        height: number = 1,
+        curviness: number = 0.2,
         dpu: number = 350,
-        origin: Vector3 = new Vector3(0),
-        offsetAngle: number = Math.PI / 2,
-        widthAngle: number = 10,
-        height: number = 5,
-        distance: number = 5,
-        segments: number = 45
+        segments: number = 45,
     ) {
         // @ts-ignore
         const poster = new window.poster.Poster();
-        super(dpu, origin, offsetAngle, widthAngle, height, distance, segments, poster.canvas._canvas);
+        super(width, height, curviness, dpu, segments, poster.canvas._canvas);
 
         this.poster = poster;
         document.body.appendChild(this.poster.el);
         this.textarea = this.poster.el.querySelector('textarea');
+        this.resizeCanvas(this.canvasWidth, this.canvasHeight);
         this.poster.language = 'javascript';
+        this.poster.value = 'afsddafdfd\n\n\sdfdsafas';
 
         // this.textarea = document.createElement('textarea');
         // document.body.appendChild(this.textarea);
@@ -91,7 +91,7 @@ export default class Textarea extends VRDisplay {
         //     this.texture.needsUpdate = true;
         // });
 
-        this.resize(this.canvasWidth, this.canvasHeight);
+        console.log(this.poster)
 
         this.focus();
         window.setInterval(this.focus.bind(this), 1000);
@@ -99,18 +99,9 @@ export default class Textarea extends VRDisplay {
         window.addEventListener('touchstart', this.focus.bind(this));
         window.addEventListener('mouseup', this.focus.bind(this));
 
-
-        setTimeout(() => {
-            console.log(this.textarea);
-            this.textarea.addEventListener('change', () => {
-                console.log('change');
-            })
-        }, 1000);
         // this.textarea.addEventListener('keydown', e => alert(e.type + ' ' + e.key));
         // this.textarea.addEventListener('keypress', e => alert(e.type + ' ' + e.key));
         // this.textarea.addEventListener('keyup', e => alert(e.type + ' ' + e.key));
-
-        console.log(this.poster);
     }
 
     focus() {
@@ -120,13 +111,15 @@ export default class Textarea extends VRDisplay {
         //     this.poster.focus();
     }
 
-    resize(width: number, height: number) {
+    resizeCanvas(width: number, height: number) {
         if (this.poster) {
+            console.log('resizeCanvas(', width, ',', height, ')');
             if (this.poster.width !== width)
                 this.poster.width = width;
             if (this.poster.height !== height)
                 this.poster.height = height;
-            this.poster.value += ' ';
+
+            console.log(this.poster.update)
         }
         // if (this.primrose) {
         //     this.primrose.setSize(width / this.scaleFactor, height / this.scaleFactor);

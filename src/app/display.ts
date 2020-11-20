@@ -1,3 +1,4 @@
+import { borderTopRightRadius } from "html2canvas/dist/types/css/property-descriptors/border-radius";
 import { CanvasTexture, ClampToEdgeWrapping, Color, DoubleSide, LinearFilter, LinearMipmapNearestFilter, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshPhongMaterial, MeshStandardMaterial, PlaneGeometry, Vector3 } from "three";
 
 export const isVRDisplay = (a: any) : a is VRDisplay =>
@@ -8,11 +9,9 @@ export default class VRDisplay extends Mesh {
 
     public locked: boolean;
 
-    public origin: Vector3;
-    public offsetAngle: number;
-    public distance: number;
-    public widthAngle: number;
+    public width: number;
     public height: number;
+    public curviness: number;
     private segments: number;
 
     // dots per unit (threejs unit)
@@ -32,12 +31,10 @@ export default class VRDisplay extends Mesh {
     public primrose : any;
 
     constructor(
+        width: number = 2,
+        height: number = 1,
+        curviness: number = 0,
         dpu: number = 350,
-        origin: Vector3 = new Vector3(0),
-        offsetAngle: number = Math.PI / 2,
-        widthAngle: number = Math.PI * 0.2,
-        height: number = 5,
-        distance: number = 5,
         segments: number = 45,
         canvas?: HTMLCanvasElement
     ) {
@@ -72,13 +69,12 @@ export default class VRDisplay extends Mesh {
         this.locked = false;
         this.isVRDisplay = true
 
-        this.origin = origin;
+        this.width = width;
         this.height = height;
-        this.widthAngle = widthAngle;
-        this.offsetAngle = offsetAngle;
-        this.distance = distance;
+        this.curviness = curviness;
         this.segments = segments;
-        this.texWidth = (2 * Math.PI * this.distance) * (this.widthAngle / (Math.PI * 2));
+        // this.texWidth = (2 * Math.PI * this.distance) * (this.widthAngle / (Math.PI * 2));
+        this.texWidth = this.width;
         this.texHeight = this.height;
 
         this.geometry = geometry;
@@ -90,10 +86,10 @@ export default class VRDisplay extends Mesh {
 
         this.canvasWidth = 0;
         this.canvasHeight = 0;
-        this.bend();
+        this.resize();
     }
 
-    bend() {
+    resize() {
         const plainGeometry = new PlaneGeometry(1, 1, this.segments, 1);
 
         for (let i = 0; i < plainGeometry.vertices.length / 2; ++i) {
@@ -103,36 +99,37 @@ export default class VRDisplay extends Mesh {
             const vertex2 = this.geometry.vertices[2*i+1];
             const t2 = plainGeometry.vertices[2*i+1].x;
 
-            const [x1, z1] = this.procesVertex(t1);
-            vertex1.x = x1;
-            vertex1.z = z1;
-
-            const [x2, z2] = this.procesVertex(t2);
-            vertex2.x = x2;
-            vertex2.z = z2;
+            vertex1.z = this.calcZ(t1);
+            vertex2.z = this.calcZ(t2);
         }
         // for (const vertex of this.geometry.vertices)
         //     vertex.y = this.origin.y + Math.sign(vertex.y) * (this.height / 2);
-        this.position.set(0, this.origin.y, 0);
 
+        this.scale.x = this.width;
+        this.scale.y = this.height;
         this.geometry.verticesNeedUpdate = true;
 
         // canvas
-        this.texWidth = (2 * Math.PI * this.distance) * (this.widthAngle / (Math.PI * 2));
+        // this.texWidth = (2 * Math.PI * this.distance) * (this.widthAngle / (Math.PI * 2));
+        this.texWidth = this.width;
         this.texHeight = this.height;
 
         this.canvasWidth = Math.floor(this.texWidth * this.dpu);
         this.canvasHeight = Math.floor(this.texHeight * this.dpu);
-        if (this.resize)
-            this.resize(this.canvasWidth, this.canvasHeight);
+        if (this.resizeCanvas)
+            this.resizeCanvas(this.canvasWidth, this.canvasHeight);
     }
-    private procesVertex(t: number): [number, number] {
-        return [
-            this.origin.x + Math.cos( this.offsetAngle + this.widthAngle * t ) * this.distance,
-            this.origin.z + Math.sin( this.offsetAngle + this.widthAngle * t ) * this.distance
-        ];
+    // private procesVertex(t: number): [number, number] {
+    //     return [
+    //         this.origin.x + Math.cos( this.offsetAngle + this.widthAngle * t ) * this.distance,
+    //         this.origin.z + Math.sin( this.offsetAngle + this.widthAngle * t ) * this.distance
+    //     ];
+    // }
+
+    private calcZ(t: number) {
+        return -Math.sqrt( 1 - 4 * t * t ) * this.curviness;
     }
 
-    resize(width: number, height: number) { /* ... */ }
+    resizeCanvas(width: number, height: number) { /* ... */ }
     update() { /* ... */}
 }

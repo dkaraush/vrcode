@@ -8,12 +8,13 @@ import InfiniteGridHelper from '../../lib/THREE.InfiniteGridHelper/InfiniteGridH
 // @ts-ignore
 import * as _Sky from 'three-sky';
 import Textarea from './textarea';
-import { VRKeyboard } from './keyboard';
+import { getVRKeyboard, VRKeyboard } from './keyboard';
+import { isVRDisplay } from './display';
 const Sky = _Sky as typeof Mesh;
 
 export class App {
     private readonly scene = new Scene();
-    private readonly camera = new PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 10000);
+    private readonly camera = new PerspectiveCamera(45, innerWidth / innerHeight, 0.001, 10000);
     private readonly renderer = new WebGLRenderer({
         antialias: true,
         canvas: document.getElementById('main-canvas') as HTMLCanvasElement,
@@ -26,15 +27,7 @@ export class App {
 
     private readonly keyboard = new VRKeyboard();
 
-    private readonly textarea = new Textarea(
-        350,
-        new Vector3(0., 1., 0),
-        Math.PI * 1.5,
-        Math.PI * 0.5,
-        1,
-        1,
-        45
-    );
+    private readonly textarea = new Textarea();
 
     private controllers: VRControllers;
     private box: Box;
@@ -61,6 +54,7 @@ export class App {
         this.scene.add( this.light );
         this.scene.add( new AmbientLight( 0x666666 ) );
 
+        this.textarea.position.set(0, 1, -2);
         this.scene.add( this.textarea );
         this.scene.add( this.keyboard );
 
@@ -71,7 +65,9 @@ export class App {
         this.renderer.outputEncoding = sRGBEncoding;
         this.renderer.setAnimationLoop(this.render.bind(this, false));
 
-        this.controllers = new VRControllers(this.renderer, this.scene);
+        this.controllers = new VRControllers(this.renderer, this.scene, obj3d =>
+            (isVRDisplay(obj3d) && !obj3d.locked) || !!getVRKeyboard(obj3d)
+        );
     }
 
     private adjustCanvasSize() {

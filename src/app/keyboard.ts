@@ -285,6 +285,7 @@ export class VRKeyboard extends Group {
         } else {
             key = obj;
         }
-        ((key as Mesh).material as MeshBasicMaterial).color = new Color(color);
+        if ((key as Mesh).material)
+            ((key as Mesh).material as MeshBasicMaterial).color = new Color(color);
     }
 }
